@@ -9,27 +9,28 @@ config.read("config.ini")
 
 
 def obtener_lista_dni(nombre_delegacion: str, max_cantidad: int) -> list[str]:
-    query = f"""select p.numero_documento
-    from rce_ged.jbpm4_task t
-    inner join rce_ged.jbpm4_variable v
-    on t.execution_ = v.execution_
-    inner join rce_ged.rce_registro r
-    on t.execution_id_ = r.id_flujo_jbpm
-    inner join rce_ged.rce_registro_persona pr
-    on r.id_registro = pr.fk_registro
-    inner join rce_ged.rce_persona p
-    on pr.fk_persona = p.id_persona
-    inner join gedo_ged.gedo_documento d
-    on d.workfloworigen = v.string_value_
-    inner join rce_ged.sys_circunscripcion c 
-    on r.fk_id_circunscripcion = c.id_circunscripcion   
-    where
-    t.name_ = 'Esperar Firma Digital' and
-    v.key_ = 'idFlujoFirma' and
-    d.numero is not null and
-    p.numero_documento is not null and
-    c.nombre = '{nombre_delegacion}' and
-    rownum <= {max_cantidad}"""
+    query = f"""select * from (
+select regexp_substr(d.motivo, '[^: ]+[0-9]$') as dni
+from rce_ged.jbpm4_task t
+inner join rce_ged.jbpm4_variable v
+on t.execution_ = v.execution_
+inner join rce_ged.rce_registro r
+on t.execution_id_ = r.id_flujo_jbpm
+inner join gedo_ged.gedo_documento d
+on d.workfloworigen = v.string_value_
+inner join rce_ged.sys_circunscripcion c 
+on r.fk_id_circunscripcion = c.id_circunscripcion
+where
+t.name_ = 'Esperar Firma Digital' and
+v.key_ = 'idFlujoFirma' and
+r.numero is null and
+r.fecha_inutilizacion is null and 
+r.fecha_anulacion is null and
+r.fecha_inmovilizacion is null and
+d.numero is not null and
+c.nombre = '{nombre_delegacion}' and
+rownum <= {max_cantidad} )
+where dni is not null"""
 
     with db.connect(
         user=config["APP"]["user"],
